@@ -1,0 +1,8 @@
+{
+  "name": "Sistema de Nómina SUPRAGUAYANA",
+  "description": "Sistema integral de nómina, control de asistencia semanal, tabulador de salarios y conversión de divisas BCV para SUPRAGUAYANA, S.A.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

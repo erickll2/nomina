@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Nómina en la Nube - SUPRAGUAYANA, S.A.</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Inter Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- External Libraries for Export/Import -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      transition: font-size 0.2s ease, background-color 0.3s ease;
+    }
+
+    /* Dynamic Font Size Classes */
+    .fs-sm { font-size: 0.85rem; }
+    .fs-base { font-size: 1rem; }
+    .fs-lg { font-size: 1.15rem; }
+    .fs-xl { font-size: 1.3rem; }
+
+    /* Custom print layout */
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      body { background: white !important; color: black !important; font-size: 10pt; }
+      .print-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+    }
+    .print-only { display: none; }
+  </style>
+</head>
+<body class="h-full text-slate-800 dark:text-slate-100 dark:bg-slate-900 flex flex-col fs-base">
+
+  <!-- Top Notification Toast -->
+  <div id="toast" class="fixed top-4 right-4 z-50 transform translate-x-full transition-transform duration-300 ease-in-out bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center space-x-3 no-print">
+    <i id="toast-icon" class="fa-solid fa-circle-info text-emerald-400"></i>
+    <span id="toast-message" class="text-sm font-medium">Mensaje de notificación</span>
+  </div>
+
+  <!-- Header / Navigation Bar -->
+  <header class="bg-emerald-800 text-white shadow-md border-b border-emerald-900 sticky top-0 z-30 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-3">
+          <div class="bg-white p-2 rounded-lg text-emerald-800 font-bold text-xl flex items-center justify-center w-10 h-10 shadow">
+            <i class="fa-solid fa-truck-droplet"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg leading-tight tracking-wide">SUPRAGUAYANA, S.A.</h1>
+            <p class="text-xs text-emerald-200">Sistema Multidispositivo de Nóminas en la Nube</p>
+          </div>
+        </div>
+
+        <!-- Sync / Status Indicator -->
+        <div class="flex items-center space-x-4">
+          <div id="sync-status" class="flex items-center space-x-2 bg-emerald-900/60 px-3 py-1.5 rounded-full text-xs font-medium border border-emerald-700">
+            <span class="relative flex h-2.5 w-2.5">
+              <span id="sync-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span id="sync-dot" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+            </span>
+            <span id="sync-text">Conectando a la Nube...</span>
+          </div>
+
+          <!-- Quick Actions / Navigation Tabs -->
+          <nav class="hidden md:flex space-x-1">
+            <button onclick="switchTab('nomina')" id="tab-btn-nomina" class="px-3 py-2 rounded-md text-sm font-medium bg-emerald-900 text-white flex items-center space-x-2">
+              <i class="fa-solid fa-table-list"></i>
+              <span>Nómina General</span>
+            </button>
+            <button onclick="switchTab('asistencias')" id="tab-btn-asistencias" class="px-3 py-2 rounded-md text-sm font-medium text-emerald-100 hover:bg-emerald-700 flex items-center space-x-2">
+              <i class="fa-solid fa-calendar-check"></i>
+              <span>Control Asistencia</span>
+            </button>
+            <button onclick="switchTab('cargos')" id="tab-btn-cargos" class="px-3 py-2 rounded-md text-sm font-medium text-emerald-100 hover:bg-emerald-700 flex items-center space-x-2">
+              <i class="fa-solid fa-briefcase"></i>
+              <span>Tabulador Cargos</span>
+            </button>
+            <button onclick="switchTab('config')" id="tab-btn-config" class="px-3 py-2 rounded-md text-sm font-medium text-emerald-100 hover:bg-emerald-700 flex items-center space-x-2">
+              <i class="fa-solid fa-gear"></i>
+              <span>Configuración</span>
+            </button>
+          </nav>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Mobile Navigation Tab Bar -->
+    <div class="md:hidden flex border-t border-emerald-700 bg-emerald-950">
+      <button onclick="switchTab('nomina')" id="mobile-tab-nomina" class="flex-1 py-2 text-center text-xs font-medium text-white bg-emerald-800">
+        <i class="fa-solid fa-table-list block mb-1"></i> Nómina
+      </button>
+      <button onclick="switchTab('asistencias')" id="mobile-tab-asistencias" class="flex-1 py-2 text-center text-xs font-medium text-emerald-200 hover:bg-emerald-800">
+        <i class="fa-solid fa-calendar-check block mb-1"></i> Asistencia
+      </button>
+      <button onclick="switchTab('cargos')" id="mobile-tab-cargos" class="flex-1 py-2 text-center text-xs font-medium text-emerald-200 hover:bg-emerald-800">
+        <i class="fa-solid fa-briefcase block mb-1"></i> Cargos
+      </button>
+      <button onclick="switchTab('config')" id="mobile-tab-config" class="flex-1 py-2 text-center text-xs font-medium text-emerald-200 hover:bg-emerald-800">
+        <i class="fa-solid fa-gear block mb-1"></i> Ajustes
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: NÓMINA GENERAL                     -->
+    <!-- ========================================== -->
+    <section id="tab-nomina" class="space-y-6">
+
+      <!-- Control Panel & Actions -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-700 no-print">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          
+          <!-- Parameters: Currency Exchange Rate & Period -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:w-auto">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <i class="fa-solid fa-coins mr-1 text-emerald-600"></i> Tasa Oficial BCV (Bs/$)
+                </label>
+                <button type="button" onclick="obtenerTasaBCVEnTiempoReal(true)" title="Actualizar Tasa BCV en Tiempo Real" class="text-[11px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold flex items-center gap-1 transition">
+                  <i id="icon-refresh-tasa" class="fa-solid fa-arrows-rotate"></i>
+                  <span>Actualizar BCV</span>
+                </button>
+              </div>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-xs font-bold">Bs.</span>
+                <input type="number" step="0.01" id="tasa-dolar" value="976.84" onchange="actualizarTasaGlobal(this.value)" class="pl-9 pr-3 py-2 w-full text-sm font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                <i class="fa-solid fa-clock mr-1 text-emerald-600"></i> Modalidad de Pago
+              </label>
+              <select id="select-periodo" onchange="cambiarTipoPeriodo(this.value)" class="w-full py-2 px-3 text-sm font-semibold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                <option value="semanal">Semanal (7 días)</option>
+                <option value="quincenal">Quincenal (15 días)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-wrap gap-2 items-center justify-start lg:justify-end">
+            <button onclick="abrirModalEmpleado()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm flex items-center space-x-2 shadow-sm transition">
+              <i class="fa-solid fa-user-plus"></i>
+              <span>Nuevo Trabajador</span>
+            </button>
+
+            <!-- Excel Import -->
+            <label class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm flex items-center space-x-2 cursor-pointer transition">
+              <i class="fa-solid fa-file-excel text-emerald-600"></i>
+              <span>Importar Excel</span>
+              <input type="file" accept=".xlsx, .xls" onchange="importarExcel(event)" class="hidden">
+            </label>
+
+            <!-- Plantilla Excel -->
+            <button onclick="descargarPlantillaExcel()" class="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm flex items-center space-x-2 transition" title="Descargar modelo Excel para importar">
+              <i class="fa-solid fa-download text-blue-500"></i>
+              <span>Plantilla</span>
+            </button>
+
+            <!-- Clear List -->
+            <button onclick="confirmarVaciarNomina()" class="bg-rose-50 hover:bg-rose-100 dark:bg-rose-950 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 font-semibold py-2 px-3 sm:px-4 rounded-lg text-xs sm:text-sm flex items-center space-x-2 transition border border-rose-200 dark:border-rose-800">
+              <i class="fa-solid fa-trash-can"></i>
+              <span>Vaciar</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Bar and Sorting Options -->
+        <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-1">
+            <div class="relative w-full sm:w-72">
+              <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+              </span>
+              <input type="text" id="input-busqueda" placeholder="Buscar por cédula, nombre o banco..." oninput="filtrarTabla()" class="w-full pl-9 pr-3 py-2 text-xs border rounded-lg dark:bg-slate-700 dark:border-slate-600 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+
+            <!-- Filtro por Cargo en Nómina General -->
+            <div class="w-full sm:w-56">
+              <select id="select-filtro-cargo" onchange="filtrarTabla()" class="w-full py-2 px-3 text-xs border rounded-lg dark:bg-slate-700 dark:border-slate-600 font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="todos">Todos los Cargos</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <label class="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+              <i class="fa-solid fa-arrow-down-up-wide mr-1"></i> Ordenar por:
+            </label>
+            <select id="select-orden" onchange="cambiarOrdenamiento(this.value)" class="py-1.5 px-3 text-xs border rounded-lg dark:bg-slate-700 dark:border-slate-600 font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="original">Orden de Registro</option>
+              <option value="cedula-asc">Cédula: Menor a Mayor (1 → 9)</option>
+              <option value="cedula-desc">Cédula: Mayor a Menor (9 → 1)</option>
+              <option value="nombre-asc">Nombre: Alfabético (A - Z)</option>
+              <option value="nombre-desc">Nombre: Alfabético (Z - A)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- General Statistics & Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div class="bg-emerald-100 dark:bg-emerald-950 p-3 rounded-lg text-emerald-600 dark:text-emerald-400 text-xl">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase">Total Nómina</p>
+            <h3 id="count-empleados" class="text-lg font-bold text-slate-800 dark:text-slate-100">0 Trabajadores</h3>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div class="bg-emerald-100 dark:bg-emerald-950 p-3 rounded-lg text-emerald-600 dark:text-emerald-400 text-xl">
+            <i class="fa-solid fa-dollar-sign"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase">Monto Total ($)</p>
+            <h3 id="total-usd" class="text-lg font-bold text-emerald-600 dark:text-emerald-400">$0.00</h3>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center space-x-4">
+          <div class="bg-blue-100 dark:bg-blue-950 p-3 rounded-lg text-blue-600 dark:text-blue-400 text-xl">
+            <i class="fa-solid fa-money-bill-transfer"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase">Monto Total (Bs.S)</p>
+            <h3 id="total-bs" class="text-lg font-bold text-blue-600 dark:text-blue-400">Bs.S 0,00</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payroll Table Container -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden print-card">
+        
+        <!-- Print Header (Only visible on print) -->
+        <div class="print-only p-6 border-b text-center">
+          <h2 class="text-2xl font-bold">SUPRAGUAYANA, S.A.</h2>
+          <p class="text-sm">RELACIÓN GENERAL DE NÓMINA - PERÍODO DE PAGO</p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse" id="tabla-nomina-main">
+            <thead>
+              <tr class="bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                <th class="py-3 px-3 text-center">#</th>
+                <th class="py-3 px-3">BANCO</th>
+                <th class="py-3 px-3">N° CUENTA</th>
+                <th class="py-3 px-3">CÉDULA</th>
+                <th class="py-3 px-3">NOMBRE Y APELLIDO</th>
+                <th class="py-3 px-3">CARGO</th>
+                <th class="py-3 px-3 text-center">ESTATUS</th>
+                <th class="py-3 px-3 text-center">ASISTENCIA</th>
+                <th class="py-3 px-3 text-right">MONTO ($)</th>
+                <th class="py-3 px-3 text-right">MONTO (Bs.S)</th>
+                <th class="py-3 px-3">OBSERVACIÓN</th>
+                <th class="py-3 px-3 text-center no-print">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-nomina" class="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+              <!-- Renderizado Dinámico de Nómina -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="p-8 text-center hidden">
+          <div class="text-slate-300 dark:text-slate-600 text-4xl mb-3">
+            <i class="fa-solid fa-folder-open"></i>
+          </div>
+          <p class="text-slate-500 dark:text-slate-400 font-medium text-sm">No hay trabajadores registrados en la nómina.</p>
+          <p class="text-xs text-slate-400 mt-1">Añada un trabajador manualmente o importe un archivo Excel.</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB ASISTENCIAS: CONTROL DIARIO DE MIÉRCOLES A MARTES -->
+    <!-- ========================================== -->
+    <section id="tab-asistencias" class="hidden space-y-6">
+      <!-- Search and Sorting Bar for Attendance -->
+      <div class="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 no-print flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto flex-1">
+          <div class="relative w-full sm:w-72">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <i class="fa-solid fa-magnifying-glass text-xs"></i>
+            </span>
+            <input type="text" id="input-busqueda-asistencia" placeholder="Buscar trabajador por nombre o cargo..." oninput="filtrarTablaAsistencias()" class="w-full pl-9 pr-3 py-2 text-xs border rounded-lg dark:bg-slate-700 dark:border-slate-600 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+
+          <!-- Filtro por Cargo en Asistencias -->
+          <div class="w-full sm:w-56">
+            <select id="select-filtro-cargo-asistencia" onchange="filtrarTablaAsistencias()" class="w-full py-2 px-3 text-xs border rounded-lg dark:bg-slate-700 dark:border-slate-600 font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="todos">Todos los Cargos</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+          <label class="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">
+            <i class="fa-solid fa-arrow-down-up-wide mr-1"></i> Ordenar por:
+          </label>
+          <select id="select-orden-asistencia" onchange="cambiarOrdenamiento(this.value)" class="py-1.5 px-3 text-xs border rounded-lg dark:bg-slate-700 dark:border-slate-600 font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="original">Orden de Registro</option>
+            <option value="cedula-asc">Cédula: Menor a Mayor (1 → 9)</option>
+            <option value="cedula-desc">Cédula: Mayor a Menor (9 → 1)</option>
+            <option value="nombre-asc">Nombre: Alfabético (A - Z)</option>
+            <option value="nombre-desc">Nombre: Alfabético (Z - A)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">Control de Asistencia Semanal (Miércoles a Martes)</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Marque los días asistidos e ingrese días adicionales si aplica. El salario se ajustará automáticamente.</p>
+          </div>
+          <div class="flex items-center space-x-3">
+            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Fecha Miércoles:</label>
+            <input type="date" id="input-fecha-inicio-semana" onchange="actualizarFechasSemana(this.value)" class="py-1.5 px-3 text-xs border rounded-lg dark:bg-slate-700 dark:border-slate-600 font-semibold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse" id="tabla-asistencias-main">
+            <thead>
+              <tr class="bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                <th class="py-3 px-3">TRABAJADOR</th>
+                <th class="py-3 px-3">CARGO</th>
+                <th class="py-3 px-3 text-center">ESTATUS</th>
+                <th class="py-3 px-2 text-center" id="th-dia-0">MIÉ<br><span class="text-[10px] text-slate-400 normal-case" id="date-dia-0">-</span></th>
+                <th class="py-3 px-2 text-center" id="th-dia-1">JUE<br><span class="text-[10px] text-slate-400 normal-case" id="date-dia-1">-</span></th>
+                <th class="py-3 px-2 text-center" id="th-dia-2">VIE<br><span class="text-[10px] text-slate-400 normal-case" id="date-dia-2">-</span></th>
+                <th class="py-3 px-2 text-center" id="th-dia-3">SÁB<br><span class="text-[10px] text-slate-400 normal-case" id="date-dia-3">-</span></th>
+                <th class="py-3 px-2 text-center text-emerald-600 dark:text-emerald-400" id="th-dia-4">DOM<br><span class="text-[10px] text-slate-400 normal-case" id="date-dia-4">-</span></th>
+                <th class="py-3 px-2 text-center" id="th-dia-5">LUN<br><span class="text-[10px] text-slate-400 normal-case" id="date-dia-5">-</span></th>
+                <th class="py-3 px-2 text-center" id="th-dia-6">MAR<br><span class="text-[10px] text-slate-400 normal-case" id="date-dia-6">-</span></th>
+                <th class="py-3 px-2 text-center text-amber-600 dark:text-amber-400">DÍAS ADIC.</th>
+                <th class="py-3 px-3 text-center">ASISTENCIAS</th>
+                <th class="py-3 px-3 text-right">SUELDO BASE</th>
+                <th class="py-3 px-3 text-right">A PAGAR ($)</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-asistencias" class="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+              <!-- Renderizado de Asistencia por Trabajador -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: TABULADOR DE SALARIOS POR CARGO    -->
+    <!-- ========================================== -->
+    <section id="tab-cargos" class="hidden space-y-6">
+      <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100">Tabulador de Salarios por Cargo</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Define los salarios base predeterminados en Dólares ($) según la responsabilidad del puesto.</p>
+          </div>
+          <button onclick="abrirModalCargo()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg text-sm flex items-center space-x-2 shadow-sm transition">
+            <i class="fa-solid fa-plus"></i>
+            <span>Nuevo Cargo</span>
+          </button>
+        </div>
+
+        <!-- Table of Positions -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                <th class="py-3 px-4">Nombre del Cargo</th>
+                <th class="py-3 px-4 text-right">Salario Semanal ($)</th>
+                <th class="py-3 px-4 text-right">Salario Quincenal ($)</th>
+                <th class="py-3 px-4 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-cargos" class="divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+              <!-- Cargos Dinámicos -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: CONFIGURACIÓN GENERAL Y APARIENCIA -->
+    <!-- ========================================== -->
+    <section id="tab-config" class="hidden space-y-6">
+      <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 border-b pb-2 dark:border-slate-700">Configuración del Sistema</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Opciones de Pantalla & Letra -->
+          <div class="space-y-4">
+            <h3 class="font-semibold text-sm text-emerald-600 dark:text-emerald-400 flex items-center space-x-2">
+              <i class="fa-solid fa-font"></i>
+              <span>Tamaño de Texto y Visualización</span>
+            </h3>
+            
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tamaño de la Fuente</label>
+              <div class="flex items-center space-x-2">
+                <button onclick="setGlobalFontSize('fs-sm')" class="px-3 py-1.5 border rounded-lg text-xs hover:bg-slate-100 dark:hover:bg-slate-700">Pequeña</button>
+                <button onclick="setGlobalFontSize('fs-base')" class="px-3 py-1.5 border rounded-lg text-sm hover:bg-slate-100 dark:hover:bg-slate-700 font-bold">Normal</button>
+                <button onclick="setGlobalFontSize('fs-lg')" class="px-3 py-1.5 border rounded-lg text-base hover:bg-slate-100 dark:hover:bg-slate-700">Grande</button>
+                <button onclick="setGlobalFontSize('fs-xl')" class="px-3 py-1.5 border rounded-lg text-lg hover:bg-slate-100 dark:hover:bg-slate-700">Muy Grande</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Tema Visual</label>
+              <div class="flex items-center space-x-3">
+                <button onclick="setTheme('light')" class="flex items-center space-x-2 px-3 py-2 border rounded-lg text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <i class="fa-solid fa-sun text-amber-500"></i>
+                  <span>Modo Claro</span>
+                </button>
+                <button onclick="setTheme('dark')" class="flex items-center space-x-2 px-3 py-2 border rounded-lg text-xs font-medium bg-slate-900 text-white hover:bg-slate-800">
+                  <i class="fa-solid fa-moon text-blue-400"></i>
+                  <span>Modo Oscuro</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parámetros Empresa & Nómina -->
+          <div class="space-y-4">
+            <h3 class="font-semibold text-sm text-emerald-600 dark:text-emerald-400 flex items-center space-x-2">
+              <i class="fa-solid fa-building"></i>
+              <span>Parámetros Corporativos</span>
+            </h3>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Nombre de la Empresa</label>
+              <input type="text" id="config-empresa" value="SUPRAGUAYANA, S.A." class="w-full py-1.5 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 font-semibold" readonly>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Moneda Secundaria</label>
+              <input type="text" value="Bolívares Digitales (Bs.S)" class="w-full py-1.5 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600" disabled>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODAL: AGREGAR / EDITAR EMPLEADO           -->
+  <!-- ========================================== -->
+  <div id="modal-empleado" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto no-print">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-700 my-8">
+      <div class="flex justify-between items-center mb-4 border-b pb-2 dark:border-slate-700">
+        <h3 id="modal-empleado-titulo" class="font-bold text-lg text-slate-800 dark:text-slate-100">Añadir Trabajador</h3>
+        <button onclick="cerrarModalEmpleado()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="form-empleado" onsubmit="guardarEmpleado(event)" class="space-y-4">
+        <input type="hidden" id="emp-id">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Cédula</label>
+            <input type="text" id="emp-cedula" required placeholder="Ej: 12345678" class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Nombre y Apellido</label>
+            <input type="text" id="emp-nombre" required placeholder="Nombre completo" class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Banco</label>
+            <select id="emp-banco" class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600">
+              <option value="BANCO DE VENEZUELA">BANCO DE VENEZUELA</option>
+              <option value="BANCO BANESCO">BANCO BANESCO</option>
+              <option value="BANCO MERCANTIL">BANCO MERCANTIL</option>
+              <option value="BANCO PROVINCIAL">BANCO PROVINCIAL</option>
+              <option value="BANCO BICENTENARIO">BANCO BICENTENARIO</option>
+              <option value="OTRO BANCO">OTRO BANCO</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">N° Cuenta (20 dígitos)</label>
+            <input type="text" id="emp-cuenta" required placeholder="01020000000000000000" maxlength="20" class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Cargo</label>
+            <select id="emp-cargo" onchange="asignarSalarioSegunCargo(this.value)" class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600">
+              <!-- Opciones de cargos cargadas dinámicamente -->
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Estatus Laboral</label>
+            <select id="emp-estatus" class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 font-semibold text-slate-800 dark:text-slate-100">
+              <option value="ACTIVO">ACTIVO</option>
+              <option value="SUSPENDIDO">SUSPENDIDO</option>
+              <option value="REPOSO">REPOSO</option>
+              <option value="DE PERMISO">DE PERMISO</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Monto Salario ($)</label>
+            <input type="number" step="0.01" id="emp-monto" required class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 font-bold text-emerald-600">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Observaciones / Notas</label>
+            <input type="text" id="emp-observacion" placeholder="Opcional: Bonos, días adicionales, etc." class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600">
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4 border-t dark:border-slate-700">
+          <button type="button" onclick="cerrarModalEmpleado()" class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-700">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow-sm">Guardar Trabajador</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL: CREAR / EDITAR CARGO               -->
+  <!-- ========================================== -->
+  <div id="modal-cargo" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 no-print">
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+      <div class="flex justify-between items-center mb-4 border-b pb-2 dark:border-slate-700">
+        <h3 class="font-bold text-lg text-slate-800 dark:text-slate-100">Gestión de Cargo</h3>
+        <button onclick="cerrarModalCargo()" class="text-slate-400 hover:text-slate-600 text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="form-cargo" onsubmit="guardarCargo(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Nombre del Cargo</label>
+          <input type="text" id="cargo-nombre" required placeholder="Ej. CHOFER, MECÁNICO, LIMPIADOR..." class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 uppercase">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Salario Semanal ($)</label>
+            <input type="number" step="0.01" id="cargo-semanal" required placeholder="60.00" class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Salario Quincenal ($)</label>
+            <input type="number" step="0.01" id="cargo-quincenal" required placeholder="120.00" class="w-full py-2 px-3 border rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600">
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4 border-t dark:border-slate-700">
+          <button type="button" onclick="cerrarModalCargo()" class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-700">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold">Guardar Cargo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- PRIMERO: FUNCIONES GLOBALES DE INTERFAZ -->
+  <script>
+    // Global UI Utility Functions
+    window.setTheme = function(theme) {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('theme', theme);
+    };
+
+    window.setGlobalFontSize = function(sizeClass) {
+      document.body.classList.remove('fs-sm', 'fs-base', 'fs-lg', 'fs-xl');
+      document.body.classList.add(sizeClass);
+      localStorage.setItem('fontSize', sizeClass);
+    };
+
+    window.switchTab = function(tabName) {
+      const tabs = ['nomina', 'asistencias', 'cargos', 'config'];
+      tabs.forEach(t => {
+        const section = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const mobileBtn = document.getElementById(`mobile-tab-${t}`);
+
+        if (t === tabName) {
+          if (section) section.classList.remove('hidden');
+          if (btn) {
+            btn.classList.add('bg-emerald-900', 'text-white');
+            btn.classList.remove('text-emerald-100', 'hover:bg-emerald-700');
+          }
+          if (mobileBtn) {
+            mobileBtn.classList.add('bg-emerald-800', 'text-white');
+            mobileBtn.classList.remove('hover:bg-emerald-800', 'text-emerald-200');
+          }
+        } else {
+          if (section) section.classList.add('hidden');
+          if (btn) {
+            btn.classList.remove('bg-emerald-900', 'text-white');
+            btn.classList.add('text-emerald-100', 'hover:bg-emerald-700');
+          }
+          if (mobileBtn) {
+            mobileBtn.classList.remove('bg-emerald-800', 'text-white');
+            mobileBtn.classList.add('hover:bg-emerald-800', 'text-emerald-200');
+          }
+        }
+      });
+    };
+
+    window.mostrarToast = function(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      if (!toast || !toastMsg) return;
+
+      toastMsg.textContent = msg;
+      if (type === 'success') {
+        toastIcon.className = "fa-solid fa-circle-check text-emerald-400";
+      } else if (type === 'rose') {
+        toastIcon.className = "fa-solid fa-circle-xmark text-rose-400";
+      } else {
+        toastIcon.className = "fa-solid fa-circle-info text-blue-400";
+      }
+
+      toast.classList.remove('translate-x-full');
+      setTimeout(() => {
+        toast.classList.add('translate-x-full');
+      }, 3500);
+    };
+
+    // Formateadores de moneda
+    function formatBs(val) {
+      return 'Bs.S ' + Number(val).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function formatUSD(val) {
+      return '$ ' + Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Renderizar la tabla principal de nómina
+    window.renderizarTablaNomina = function() {
+      const tbody = document.getElementById('tbody-nomina');
+      const emptyState = document.getElementById('empty-state');
+      if (!tbody) return;
+
+      let empleados = [...window.state.empleados];
+      const tasa = window.state.tasaDolar;
+
+      tbody.innerHTML = '';
+
+      if (!empleados || empleados.length === 0) {
+        if (emptyState) emptyState.classList.remove('hidden');
+        document.getElementById('total-usd').textContent = '$0.00';
+        document.getElementById('total-bs').textContent = 'Bs.S 0,00';
+        document.getElementById('count-empleados').textContent = '0 Trabajadores';
+        return;
+      }
+
+      if (emptyState) emptyState.classList.add('hidden');
+
+      // Función para limpiar cédulas para orden númerico
+      const parseCedula = (c) => parseInt(String(c || '').replace(/\D/g, ''), 10) || 0;
+
+      // Aplicar Criterio de Ordenamiento
+      const criterio = window.state.criterioOrden || 'original';
+      if (criterio === 'cedula-asc') {
+        empleados.sort((a, b) => parseCedula(a.cedula) - parseCedula(b.cedula));
+      } else if (criterio === 'cedula-desc') {
+        empleados.sort((a, b) => parseCedula(b.cedula) - parseCedula(a.cedula));
+      } else if (criterio === 'nombre-asc') {
+        empleados.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
+      } else if (criterio === 'nombre-desc') {
+        empleados.sort((a, b) => (b.nombre || '').localeCompare(a.nombre || '', 'es', { sensitivity: 'base' }));
+      }
+
+      let totalUSD = 0;
+      let totalBS = 0;
+
+      empleados.forEach((emp, idx) => {
+        const estatus = emp.estatus || 'ACTIVO';
+        const baseUsd = parseFloat(emp.montoUsd) || 0;
+        const asistencias = (estatus !== 'ACTIVO') 
+          ? [false, false, false, false, false, false, false]
+          : (emp.asistencias !== undefined ? emp.asistencias : [true, true, true, true, true, true, true]);
+        
+        const diasTrabajados = asistencias.filter(Boolean).length;
+        const diasAdicionales = (estatus !== 'ACTIVO') ? 0 : (parseInt(emp.diasAdicionales) || 0);
+        const totalDiasPagados = diasTrabajados + diasAdicionales;
+        
+        // Cálculo Proporcional (7 días laborables de Miércoles a Martes)
+        const montoUsd = (baseUsd / 7) * totalDiasPagados;
+        const montoBs = montoUsd * tasa;
+
+        totalUSD += montoUsd;
+        totalBS += montoBs;
+
+        // Badge para el estatus
+        let estatusBadge = '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">ACTIVO</span>';
+        if (estatus === 'SUSPENDIDO') {
+          estatusBadge = '<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">SUSPENDIDO</span>';
+        } else if (estatus === 'REPOSO') {
+          estatusBadge = '<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">REPOSO</span>';
+        } else if (estatus === 'DE PERMISO') {
+          estatusBadge = '<span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-bold">DE PERMISO</span>';
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition border-b border-slate-100 dark:border-slate-700/60";
+        tr.innerHTML = `
+          <td class="py-3 px-3 text-center font-bold text-slate-500 text-xs">${idx + 1}</td>
+          <td class="py-3 px-3 font-medium text-xs text-slate-700 dark:text-slate-300">${emp.banco}</td>
+          <td class="py-3 px-3 font-mono text-xs text-slate-600 dark:text-slate-400">${emp.cuenta}</td>
+          <td class="py-3 px-3 font-semibold text-xs text-slate-800 dark:text-slate-200">${emp.cedula}</td>
+          <td class="py-3 px-3 font-bold text-xs text-slate-900 dark:text-slate-100">${emp.nombre}</td>
+          <td class="py-3 px-3 text-xs">
+            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-600">
+              ${emp.cargo}
+            </span>
+          </td>
+          <td class="py-3 px-3 text-center">${estatusBadge}</td>
+          <td class="py-3 px-3 text-center font-bold text-xs">
+            <span class="px-2 py-0.5 rounded ${diasTrabajados === 7 ? 'bg-emerald-100 text-emerald-800' : (diasTrabajados === 0 ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-800')}">
+              ${diasTrabajados}${diasAdicionales > 0 ? ` + ${diasAdicionales} adic.` : ''}/7 días
+            </span>
+          </td>
+          <td class="py-3 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">${formatUSD(montoUsd)}</td>
+          <td class="py-3 px-3 text-right font-bold text-slate-800 dark:text-slate-200">${formatBs(montoBs)}</td>
+          <td class="py-3 px-3 text-xs text-slate-500 italic">${emp.observacion || '-'}</td>
+          <td class="py-3 px-3 text-center no-print space-x-1">
+            <button onclick="editarEmpleado('${emp.id}')" title="Editar" class="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-slate-700 rounded transition">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button onclick="confirmarEliminarEmpleado('${emp.id}')" title="Eliminar" class="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 dark:hover:bg-slate-700 rounded transition">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Re-aplicar filtro activo si hay búsqueda
+      if (document.getElementById('input-busqueda')?.value) {
+        window.filtrarTabla();
+      }
+
+      // Actualizar Totales Globales
+      document.getElementById('total-usd').textContent = formatUSD(totalUSD);
+      document.getElementById('total-bs').textContent = formatBs(totalBS);
+      document.getElementById('count-empleados').textContent = `${empleados.length} Trabajadores`;
+    };
+
+    // Actualizar Encabezado con las Fechas de la Semana (Miércoles a Martes)
+    window.actualizarEncabezadoFechas = function() {
+      const inputFecha = document.getElementById('input-fecha-inicio-semana');
+      if (!inputFecha) return;
+
+      if (!inputFecha.value) {
+        const hoy = new Date();
+        const diaSemana = hoy.getDay(); // 0: Dom, 1: Lun, 2: Mar, 3: Mié, 4: Jue, 5: Vie, 6: Sáb
+        // Calcular la fecha del Miércoles más cercano hacia atrás
+        let diff = diaSemana - 3;
+        if (diff < 0) diff += 7;
+        
+        const miercoles = new Date(hoy);
+        miercoles.setDate(hoy.getDate() - diff);
+        inputFecha.value = miercoles.toISOString().split('T')[0];
+      }
+
+      const fechaBase = new Date(inputFecha.value + 'T00:00:00');
+      
+      for (let i = 0; i < 7; i++) {
+        const fechaDia = new Date(fechaBase);
+        fechaDia.setDate(fechaBase.getDate() + i);
+        const elFecha = document.getElementById(`date-dia-${i}`);
+        if (elFecha) {
+          const dia = String(fechaDia.getDate()).padStart(2, '0');
+          const mes = String(fechaDia.getMonth() + 1).padStart(2, '0');
+          elFecha.textContent = `${dia}/${mes}`;
+        }
+      }
+    };
+
+    // Renderizar Tabla de Asistencias Semanal
+    window.renderizarTablaAsistencias = function() {
+      const tbody = document.getElementById('tbody-asistencias');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      let empleados = [...(window.state.empleados || [])];
+
+      const parseCedula = (c) => parseInt(String(c || '').replace(/\D/g, ''), 10) || 0;
+
+      const criterio = window.state.criterioOrden || 'original';
+      if (criterio === 'cedula-asc') {
+        empleados.sort((a, b) => parseCedula(a.cedula) - parseCedula(b.cedula));
+      } else if (criterio === 'cedula-desc') {
+        empleados.sort((a, b) => parseCedula(b.cedula) - parseCedula(a.cedula));
+      } else if (criterio === 'nombre-asc') {
+        empleados.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es', { sensitivity: 'base' }));
+      } else if (criterio === 'nombre-desc') {
+        empleados.sort((a, b) => (b.nombre || '').localeCompare(a.nombre || '', 'es', { sensitivity: 'base' }));
+      }
+
+      window.actualizarEncabezadoFechas();
+
+      empleados.forEach((emp) => {
+        const estatus = emp.estatus || 'ACTIVO';
+        const esInactivo = estatus !== 'ACTIVO';
+
+        const asistencias = esInactivo
+          ? [false, false, false, false, false, false, false]
+          : (emp.asistencias || [true, true, true, true, true, true, true]);
+
+        const diasAdicionales = esInactivo ? 0 : (parseInt(emp.diasAdicionales) || 0);
+        const baseUsd = parseFloat(emp.montoUsd) || 0;
+        const diasTrabajados = asistencias.filter(Boolean).length;
+        const totalDiasPagados = diasTrabajados + diasAdicionales;
+        const montoUsd = (baseUsd / 7) * totalDiasPagados;
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition border-b border-slate-100 dark:border-slate-700/60";
+
+        let checkboxesHTML = '';
+        for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+          const checked = asistencias[dayIdx] ? 'checked' : '';
+          const disabled = esInactivo ? 'disabled' : '';
+          checkboxesHTML += `
+            <td class="py-3 px-2 text-center">
+              <input type="checkbox" ${checked} ${disabled} onchange="toggleAsistencia('${emp.id}', ${dayIdx}, this.checked)" class="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 ${esInactivo ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}">
+            </td>
+          `;
+        }
+
+        // Selector rápido de estatus en la misma tabla de asistencias
+        const selectEstatusHTML = `
+          <select onchange="cambiarEstatusTrabajador('${emp.id}', this.value)" class="py-1 px-1.5 text-[11px] font-bold border rounded dark:bg-slate-700 dark:border-slate-600 ${
+            estatus === 'ACTIVO' ? 'text-emerald-700 bg-emerald-50 border-emerald-300' :
+            estatus === 'SUSPENDIDO' ? 'text-rose-700 bg-rose-50 border-rose-300' :
+            estatus === 'REPOSO' ? 'text-amber-700 bg-amber-50 border-amber-300' :
+            'text-blue-700 bg-blue-50 border-blue-300'
+          }">
+            <option value="ACTIVO" ${estatus === 'ACTIVO' ? 'selected' : ''}>ACTIVO</option>
+            <option value="SUSPENDIDO" ${estatus === 'SUSPENDIDO' ? 'selected' : ''}>SUSPENDIDO</option>
+            <option value="REPOSO" ${estatus === 'REPOSO' ? 'selected' : ''}>REPOSO</option>
+            <option value="DE PERMISO" ${estatus === 'DE PERMISO' ? 'selected' : ''}>DE PERMISO</option>
+          </select>
+        `;
+
+        tr.innerHTML = `
+          <td class="py-3 px-3 font-bold text-slate-900 dark:text-slate-100 text-xs">${emp.nombre}</td>
+          <td class="py-3 px-3 text-xs text-slate-500">${emp.cargo}</td>
+          <td class="py-3 px-2 text-center">${selectEstatusHTML}</td>
+          ${checkboxesHTML}
+          <td class="py-3 px-2 text-center">
+            <input type="number" min="0" max="30" value="${diasAdicionales}" ${esInactivo ? 'disabled' : ''} onchange="actualizarDiasAdicionales('${emp.id}', this.value)" class="w-12 text-center py-1 text-xs border border-amber-300 rounded-md bg-amber-50 dark:bg-slate-700 dark:border-amber-600 font-bold text-amber-700 dark:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 ${esInactivo ? 'opacity-40 cursor-not-allowed' : ''}">
+          </td>
+          <td class="py-3 px-3 text-center font-bold text-xs text-slate-700 dark:text-slate-300">${diasTrabajados}${diasAdicionales > 0 ? ` + ${diasAdicionales}` : ''} / 7</td>
+          <td class="py-3 px-3 text-right font-semibold text-slate-500 text-xs">${formatUSD(baseUsd)}</td>
+          <td class="py-3 px-3 text-right font-extrabold text-emerald-600 text-xs">${formatUSD(montoUsd)}</td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    };
+
+    window.cambiarEstatusTrabajador = function(empId, nuevoEstatus) {
+      const emp = window.state.empleados.find(e => String(e.id) === String(empId));
+      if (!emp) return;
+
+      emp.estatus = nuevoEstatus;
+      if (nuevoEstatus !== 'ACTIVO') {
+        emp.asistencias = [false, false, false, false, false, false, false];
+        emp.diasAdicionales = 0;
+      } else {
+        emp.asistencias = [true, true, true, true, true, true, true];
+      }
+
+      window.syncGuardarEmpleado(emp);
+      window.mostrarToast(`Estatus de ${emp.nombre} cambiado a: ${nuevoEstatus}`);
+    };
+
+    window.guardarEmpleado = function(e) {
+      e.preventDefault();
+      const id = document.getElementById('emp-id').value;
+      const estatus = document.getElementById('emp-estatus').value;
+      const empExistente = window.state.empleados.find(emp => String(emp.id) === String(id));
+
+      let asistencias = [true, true, true, true, true, true, true];
+      if (estatus !== 'ACTIVO') {
+        asistencias = [false, false, false, false, false, false, false];
+      } else if (empExistente && empExistente.asistencias) {
+        asistencias = empExistente.asistencias;
+      }
+
+      const empData = {
+        id: String(id),
+        cedula: document.getElementById('emp-cedula').value.trim(),
+        nombre: document.getElementById('emp-nombre').value.trim().toUpperCase(),
+        banco: document.getElementById('emp-banco').value,
+        cuenta: document.getElementById('emp-cuenta').value.trim(),
+        cargo: document.getElementById('emp-cargo').value,
+        estatus: estatus,
+        montoUsd: parseFloat(document.getElementById('emp-monto').value) || 0,
+        observacion: document.getElementById('emp-observacion').value.trim(),
+        asistencias: asistencias,
+        diasAdicionales: estatus !== 'ACTIVO' ? 0 : (empExistente ? empExistente.diasAdicionales || 0 : 0)
+      };
+
+      window.syncGuardarEmpleado(empData);
+      cerrarModalEmpleado();
+      mostrarToast("Trabajador guardado exitosamente.");
+    };
+
+    window.abrirModalEmpleado = function(emp = null) {
+      document.getElementById('form-empleado').reset();
+      const titulo = document.getElementById('modal-empleado-titulo');
+      
+      if (emp) {
+        titulo.textContent = "Editar Trabajador";
+        document.getElementById('emp-id').value = emp.id;
+        document.getElementById('emp-cedula').value = emp.cedula || '';
+        document.getElementById('emp-nombre').value = emp.nombre || '';
+        document.getElementById('emp-banco').value = emp.banco || 'BANCO DE VENEZUELA';
+        document.getElementById('emp-cuenta').value = emp.cuenta || '';
+        document.getElementById('emp-cargo').value = emp.cargo || '';
+        document.getElementById('emp-estatus').value = emp.estatus || 'ACTIVO';
+        document.getElementById('emp-monto').value = emp.montoUsd || 0;
+        document.getElementById('emp-observacion').value = emp.observacion || '';
+      } else {
+        titulo.textContent = "Añadir Trabajador";
+        document.getElementById('emp-id').value = 'emp_' + Date.now();
+        document.getElementById('emp-estatus').value = 'ACTIVO';
+        if (window.state.cargos.length > 0) {
+          document.getElementById('emp-cargo').value = window.state.cargos[0].nombre;
+          window.asignarSalarioSegunCargo(window.state.cargos[0].nombre);
+        }
+      }
+
+      document.getElementById('modal-empleado').classList.remove('hidden');
+    };
+
+    window.cerrarModalEmpleado = function() {
+      document.getElementById('modal-empleado').classList.add('hidden');
+    };
+
+    window.asignarSalarioSegunCargo = function(nombreCargo) {
+      const cargoObj = window.state.cargos.find(c => c.nombre === nombreCargo);
+      if (cargoObj) {
+        const inputMonto = document.getElementById('emp-monto');
+        if (inputMonto) {
+          inputMonto.value = window.state.tipoPeriodo === 'semanal' ? cargoObj.semanal : cargoObj.quincenal;
+        }
+      }
+    };
+
+    window.actualizarFechasSemana = function(val) {
+      if (!val) return;
+      window.state.fechaInicioSemana = val;
+      window.actualizarEncabezadoFechas();
+    };
+
+    window.toggleAsistencia = function(empId, dayIndex, isChecked) {
+      const emp = window.state.empleados.find(e => String(e.id) === String(empId));
+      if (!emp) return;
+
+      if (!emp.asistencias || emp.asistencias.length < 7) {
+        emp.asistencias = [true, true, true, true, true, true, true];
+      }
+
+      emp.asistencias[dayIndex] = isChecked;
+      window.syncGuardarEmpleado(emp);
+    };
+
+    window.actualizarDiasAdicionales = function(empId, val) {
+      const emp = window.state.empleados.find(e => String(e.id) === String(empId));
+      if (!emp) return;
+
+      emp.diasAdicionales = parseInt(val) || 0;
+      window.syncGuardarEmpleado(emp);
+    };
+
+    window.renderizarTablaCargos = function() {
+      const tbody = document.getElementById('tbody-cargos');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      window.state.cargos.forEach((c) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition border-b border-slate-100 dark:border-slate-700/60";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-bold text-slate-800 dark:text-slate-200 text-xs">${c.nombre}</td>
+          <td class="py-3 px-4 text-right font-semibold text-emerald-600 text-xs">${formatUSD(c.semanal)}</td>
+          <td class="py-3 px-4 text-right font-semibold text-emerald-600 text-xs">${formatUSD(c.quincenal)}</td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="eliminarCargo('${c.id}')" title="Eliminar Cargo" class="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 dark:hover:bg-slate-700 rounded transition">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    };
+
+    window.poblarSelectCargos = function() {
+      const select = document.getElementById('emp-cargo');
+      const filtroNomina = document.getElementById('select-filtro-cargo');
+      const filtroAsistencia = document.getElementById('select-filtro-cargo-asistencia');
+
+      const valPrevio = select ? select.value : '';
+      const valFiltroNomina = filtroNomina ? filtroNomina.value : 'todos';
+      const valFiltroAsistencia = filtroAsistencia ? filtroAsistencia.value : 'todos';
+
+      if (select) {
+        select.innerHTML = '';
+        window.state.cargos.forEach((c) => {
+          const opt = document.createElement('option');
+          opt.value = c.nombre;
+          opt.textContent = c.nombre;
+          select.appendChild(opt);
+        });
+        if (valPrevio) select.value = valPrevio;
+      }
+
+      // Poblado dinámico del filtro de cargos para Nómina General
+      if (filtroNomina) {
+        filtroNomina.innerHTML = '<option value="todos">Todos los Cargos</option>';
+        window.state.cargos.forEach((c) => {
+          const opt = document.createElement('option');
+          opt.value = c.nombre;
+          opt.textContent = c.nombre;
+          filtroNomina.appendChild(opt);
+        });
+        filtroNomina.value = valFiltroNomina;
+      }
+
+      // Poblado dinámico del filtro de cargos para Asistencias
+      if (filtroAsistencia) {
+        filtroAsistencia.innerHTML = '<option value="todos">Todos los Cargos</option>';
+        window.state.cargos.forEach((c) => {
+          const opt = document.createElement('option');
+          opt.value = c.nombre;
+          opt.textContent = c.nombre;
+          filtroAsistencia.appendChild(opt);
+        });
+        filtroAsistencia.value = valFiltroAsistencia;
+      }
+    };
+
+    window.editarEmpleado = function(id) {
+      const emp = window.state.empleados.find(e => String(e.id) === String(id));
+      if (emp) window.abrirModalEmpleado(emp);
+    };
+
+    window.confirmarEliminarEmpleado = function(id) {
+      window.mostrarModalConfirmacion(
+        "¿Eliminar trabajador?",
+        "¿Está seguro de que desea eliminar a este trabajador de la nómina?",
+        function() {
+          window.syncEliminarEmpleado(id);
+          mostrarToast("Trabajador eliminado con éxito.");
+        }
+      );
+    };
+
+    window.confirmarVaciarNomina = function() {
+      if (!window.state.empleados || window.state.empleados.length === 0) {
+        mostrarToast("La nómina ya se encuentra vacía.", "rose");
+        return;
+      }
+      window.mostrarModalConfirmacion(
+        "¿Vaciar toda la nómina?",
+        "¿Está seguro de que desea eliminar TODOS los trabajadores de la tabla de nómina? Esta acción afectará a todos los usuarios conectados.",
+        function() {
+          window.syncVaciarNomina();
+          mostrarToast("Nómina vaciada por completo.");
+        }
+      );
+    };
+
+    window.mostrarModalConfirmacion = function(titulo, mensaje, callbackAceptar) {
+      let modal = document.getElementById('modal-confirmacion');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-confirmacion';
+        modal.className = 'fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 no-print';
+        modal.innerHTML = `
+          <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-sm w-full p-6 border border-slate-200 dark:border-slate-700">
+            <h3 id="modal-confirm-titulo" class="font-bold text-lg text-slate-800 dark:text-slate-100 mb-2"></h3>
+            <p id="modal-confirm-mensaje" class="text-sm text-slate-600 dark:text-slate-300 mb-6"></p>
+            <div class="flex justify-end space-x-3">
+              <button id="modal-confirm-cancelar" class="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">Cancelar</button>
+              <button id="modal-confirm-aceptar" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-semibold shadow-sm">Confirmar</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+
+      document.getElementById('modal-confirm-titulo').textContent = titulo;
+      document.getElementById('modal-confirm-mensaje').textContent = mensaje;
+
+      const btnCancelar = document.getElementById('modal-confirm-cancelar');
+      const btnAceptar = document.getElementById('modal-confirm-aceptar');
+
+      const cerrar = () => modal.classList.add('hidden');
+
+      btnCancelar.onclick = cerrar;
+      btnAceptar.onclick = () => {
+        cerrar();
+        if (typeof callbackAceptar === 'function') callbackAceptar();
+      };
+
+      modal.classList.remove('hidden');
+    };
+
+    window.actualizarTasaGlobal = function(val) {
+      const nuevaTasa = parseFloat(val) || 0;
+      window.state.tasaDolar = nuevaTasa;
+      window.renderizarTablaNomina();
+      window.syncGuardarConfig({ tasaDolar: nuevaTasa, tipoPeriodo: window.state.tipoPeriodo });
+      mostrarToast(`Tasa de cambio actualizada a Bs. ${nuevaTasa}`);
+    };
+
+    // Función para obtener la tasa oficial del BCV en tiempo real mediante API externa
+    window.obtenerTasaBCVEnTiempoReal = async function(notificar = false) {
+      const iconRefresh = document.getElementById('icon-refresh-tasa');
+      if (iconRefresh) iconRefresh.classList.add('fa-spin');
+
+      const apisBCV = [
+        'https://ve.dolarapi.com/v1/dolares/oficial',
+        'https://pydolarve.org/api/v1/dollar?page=bcv'
+      ];
+
+      let tasaEncontrada = null;
+
+      for (const url of apisBCV) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.promedio) {
+              tasaEncontrada = parseFloat(data.promedio);
+              break;
+            } else if (data.price) {
+              tasaEncontrada = parseFloat(data.price);
+              break;
+            } else if (data.monedas && data.monedas.usd) {
+              tasaEncontrada = parseFloat(data.monedas.usd.promedio || data.monedas.usd.precio);
+              break;
+            }
+          }
+        } catch (err) {
+          console.warn("Error consultando fuente de tasa BCV (" + url + "):", err);
+        }
+      }
+
+      if (iconRefresh) iconRefresh.classList.remove('fa-spin');
+
+      if (tasaEncontrada && !isNaN(tasaEncontrada) && tasaEncontrada > 0) {
+        const tasaFormateada = parseFloat(tasaEncontrada.toFixed(2));
+        window.state.tasaDolar = tasaFormateada;
+
+        const inputTasa = document.getElementById('tasa-dolar');
+        if (inputTasa) inputTasa.value = tasaFormateada;
+
+        window.renderizarTablaNomina();
+        window.syncGuardarConfig({ tasaDolar: tasaFormateada, tipoPeriodo: window.state.tipoPeriodo });
+
+        if (notificar) {
+          mostrarToast(`Tasa BCV obtenida con éxito: Bs. ${tasaFormateada}`);
+        }
+        return tasaFormateada;
+      } else {
+        if (notificar) {
+          mostrarToast("No se pudo obtener la tasa BCV automática. Puede ingresar la tasa manualmente.", "rose");
+        }
+        return null;
+      }
+    };
+
+    window.cambiarTipoPeriodo = function(val) {
+      window.state.tipoPeriodo = val;
+      const badge = document.getElementById('badge-periodo');
+      if (badge) badge.textContent = val === 'semanal' ? 'Semanal' : 'Quincenal';
+      window.renderizarTablaNomina();
+      window.syncGuardarConfig({ tasaDolar: window.state.tasaDolar, tipoPeriodo: val });
+    };
+
+    window.cambiarOrdenamiento = function(criterio) {
+      window.state.criterioOrden = criterio;
+      const selNomina = document.getElementById('select-orden');
+      const selAsistencia = document.getElementById('select-orden-asistencia');
+      if (selNomina) selNomina.value = criterio;
+      if (selAsistencia) selAsistencia.value = criterio;
+
+      window.renderizarTablaNomina();
+      window.renderizarTablaAsistencias();
+    };
+
+    window.filtrarTabla = function() {
+      const q = (document.getElementById('input-busqueda')?.value || '').toLowerCase().trim();
+      const cargoSeleccionado = document.getElementById('select-filtro-cargo')?.value || 'todos';
+      const filas = document.querySelectorAll('#tbody-nomina tr');
+
+      filas.forEach(f => {
+        const txt = f.textContent.toLowerCase();
+        const celdaCargo = f.children[5]?.textContent.trim().toUpperCase() || '';
+
+        const coincideTexto = txt.includes(q);
+        const coincideCargo = cargoSeleccionado === 'todos' || celdaCargo === cargoSeleccionado;
+
+        f.style.display = (coincideTexto && coincideCargo) ? '' : 'none';
+      });
+    };
+
+    window.filtrarTablaAsistencias = function() {
+      const q = (document.getElementById('input-busqueda-asistencia')?.value || '').toLowerCase().trim();
+      const cargoSeleccionado = document.getElementById('select-filtro-cargo-asistencia')?.value || 'todos';
+      const filas = document.querySelectorAll('#tbody-asistencias tr');
+
+      filas.forEach(f => {
+        const txt = f.textContent.toLowerCase();
+        const celdaCargo = f.children[1]?.textContent.trim().toUpperCase() || '';
+
+        const coincideTexto = txt.includes(q);
+        const coincideCargo = cargoSeleccionado === 'todos' || celdaCargo === cargoSeleccionado;
+
+        f.style.display = (coincideTexto && coincideCargo) ? '' : 'none';
+      });
+    };
+
+    window.descargarPlantillaExcel = function() {
+      try {
+        const dataPlantilla = [
+          {
+            "BANCO": "BANCO DE VENEZUELA",
+            "N° CUENTA": "01020000000000000000",
+            "CÉDULA": "12345678",
+            "NOMBRE Y APELLIDO": "PÉREZ PÉREZ JUAN CARLOS",
+            "CARGO": "CHOFER",
+            "MONTO $": 85.00,
+            "OBSERVACIÓN": "PERSONAL OPERATIVO"
+          },
+          {
+            "BANCO": "BANCO BANESCO",
+            "N° CUENTA": "01340000000000000000",
+            "CÉDULA": "87654321",
+            "NOMBRE Y APELLIDO": "GÓMEZ MARÍA FERNANDA",
+            "CARGO": "AYUDANTE",
+            "MONTO $": 60.00,
+            "OBSERVACIÓN": "TURNO MAÑANA"
+          }
+        ];
+
+        const ws = XLSX.utils.json_to_sheet(dataPlantilla);
+        ws['!cols'] = [
+          { wch: 22 },
+          { wch: 24 },
+          { wch: 14 },
+          { wch: 30 },
+          { wch: 18 },
+          { wch: 12 },
+          { wch: 25 }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Plantilla_Nomina");
+        XLSX.writeFile(wb, "Plantilla_Nomina_SUPRAGUAYANA.xlsx");
+        mostrarToast("Plantilla descargada con éxito.");
+      } catch (e) {
+        console.error("Error al descargar plantilla Excel:", e);
+        mostrarToast("Error al generar la plantilla Excel.", "rose");
+      }
+    };
+
+    window.importarExcel = function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+
+          const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+          if (!rows || rows.length === 0) {
+            mostrarToast("El archivo Excel está vacío.", "rose");
+            return;
+          }
+
+          let headerRowIndex = -1;
+          for (let i = 0; i < Math.min(10, rows.length); i++) {
+            const rowStr = rows[i].join(' ').toUpperCase();
+            if (rowStr.includes('CEDULA') || rowStr.includes('CÉDULA') || rowStr.includes('NOMBRE') || rowStr.includes('CARGO') || rowStr.includes('MONTO')) {
+              headerRowIndex = i;
+              break;
+            }
+          }
+
+          let empleadosProcesados = [];
+
+          if (headerRowIndex !== -1) {
+            const headers = rows[headerRowIndex].map(h => String(h).toUpperCase().trim());
+            
+            const colIdx = {
+              banco: headers.findIndex(h => h.includes('BANCO')),
+              cuenta: headers.findIndex(h => h.includes('CUENTA') || h.includes('Nº CUENTA') || h.includes('N° CUENTA')),
+              cedula: headers.findIndex(h => h.includes('CEDULA') || h.includes('CÉDULA') || h.includes('CI') || h.includes('C.I.')),
+              nombre: headers.findIndex(h => h.includes('NOMBRE') || h.includes('APELLIDO') || h.includes('TRABAJADOR') || h.includes('EMPLEADO')),
+              cargo: headers.findIndex(h => h.includes('CARGO') || h.includes('PUESTO') || h.includes('FUNCION')),
+              monto: headers.findIndex(h => h.includes('MONTO') || h.includes('SALARIO') || h.includes('SUELDO') || h.includes('DOLAR') || h.includes('$') || h.includes('USD')),
+              observacion: headers.findIndex(h => h.includes('OBSERV') || h.includes('NOTA') || h.includes('CONCEPTO'))
+            };
+
+            for (let i = headerRowIndex + 1; i < rows.length; i++) {
+              const r = rows[i];
+              if (!r || r.length === 0) continue;
+
+              const nombre = colIdx.nombre !== -1 ? String(r[colIdx.nombre] || '').trim().toUpperCase() : '';
+              const cedula = colIdx.cedula !== -1 ? String(r[colIdx.cedula] || '').trim() : '';
+
+              if (!nombre && !cedula) continue;
+
+              let montoUsd = 0;
+              if (colIdx.monto !== -1 && r[colIdx.monto]) {
+                const valStr = String(r[colIdx.monto]).replace('$', '').replace(',', '.').trim();
+                montoUsd = parseFloat(valStr) || 0;
+              }
+
+              const cargo = colIdx.cargo !== -1 && r[colIdx.cargo] ? String(r[colIdx.cargo]).trim().toUpperCase() : 'AYUDANTE';
+
+              if (montoUsd === 0) {
+                const cargoObj = window.state.cargos.find(c => c.nombre === cargo);
+                if (cargoObj) {
+                  montoUsd = window.state.tipoPeriodo === 'semanal' ? cargoObj.semanal : cargoObj.quincenal;
+                }
+              }
+
+              empleadosProcesados.push({
+                id: 'emp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                banco: colIdx.banco !== -1 && r[colIdx.banco] ? String(r[colIdx.banco]).trim().toUpperCase() : 'BANCO DE VENEZUELA',
+                cuenta: colIdx.cuenta !== -1 && r[colIdx.cuenta] ? String(r[colIdx.cuenta]).trim() : '00000000000000000000',
+                cedula: cedula || 'S/C',
+                nombre: nombre || 'TRABAJADOR SIN NOMBRE',
+                cargo: cargo,
+                montoUsd: montoUsd,
+                observacion: colIdx.observacion !== -1 && r[colIdx.observacion] ? String(r[colIdx.observacion]).trim() : 'CARGA MASIVA EXCEL'
+              });
+            }
+          } else {
+            for (let i = 0; i < rows.length; i++) {
+              const r = rows[i];
+              if (!r || r.length < 3) continue;
+
+              const nombre = String(r[3] || r[2] || '').trim().toUpperCase();
+              if (!nombre) continue;
+
+              empleadosProcesados.push({
+                id: 'emp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                banco: String(r[0] || 'BANCO DE VENEZUELA').trim().toUpperCase(),
+                cuenta: String(r[1] || '00000000000000000000').trim(),
+                cedula: String(r[2] || 'S/C').trim(),
+                nombre: nombre,
+                cargo: String(r[4] || 'AYUDANTE').trim().toUpperCase(),
+                montoUsd: parseFloat(r[5]) || 60,
+                observacion: String(r[6] || 'CARGA MASIVA EXCEL').trim()
+              });
+            }
+          }
+
+          if (empleadosProcesados.length === 0) {
+            mostrarToast("No se encontraron datos válidos de trabajadores en el archivo.", "rose");
+            return;
+          }
+
+          empleadosProcesados.forEach(emp => {
+            window.syncGuardarEmpleado(emp);
+          });
+
+          mostrarToast(`¡Éxito! Se importaron ${empleadosProcesados.length} trabajadores.`);
+          event.target.value = '';
+        } catch (err) {
+          console.error("Error al procesar archivo Excel:", err);
+          mostrarToast("Ocurrió un error al analizar el archivo Excel.", "rose");
+        }
+      };
+
+      reader.readAsBuffer
+    };
+
+    window.abrirModalCargo = function() {
+      document.getElementById('form-cargo').reset();
+      document.getElementById('modal-cargo').classList.remove('hidden');
+    };
+
+    window.cerrarModalCargo = function() {
+      document.getElementById('modal-cargo').classList.add('hidden');
+    };
+
+    window.guardarCargo = function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('cargo-nombre').value.trim().toUpperCase();
+      const semanal = parseFloat(document.getElementById('cargo-semanal').value) || 0;
+      const quincenal = parseFloat(document.getElementById('cargo-quincenal').value) || 0;
+
+      if (!nombre) return;
+
+      const nuevoCargo = {
+        id: 'cargo_' + Date.now(),
+        nombre: nombre,
+        semanal: semanal,
+        quincenal: quincenal
+      };
+
+      window.syncGuardarCargo(nuevoCargo);
+      cerrarModalCargo();
+      mostrarToast("Nuevo cargo agregado al tabulador.");
+    };
+
+    window.eliminarCargo = function(id) {
+      window.mostrarModalConfirmacion(
+        "¿Eliminar cargo?",
+        "¿Está seguro de eliminar este cargo del tabulador?",
+        function() {
+          window.syncEliminarCargo(id);
+          mostrarToast("Cargo eliminado del tabulador.");
+        }
+      );
+    };
+  </script>
+
+  <!-- LÓGICA DE FIRESTORE Y JAVASCRIPT PRINCIPAL EN NUBE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'supraguayana-nomina-app';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+    let db = null;
+    let auth = null;
+    let isCloudActive = false;
+
+    window.state = {
+      tasaDolar: 976.84,
+      tipoPeriodo: 'semanal',
+      criterioOrden: 'original',
+      empleados: [],
+      cargos: [
+        { id: '1', nombre: 'AYUDANTE', semanal: 60, quincenal: 120 },
+        { id: '2', nombre: 'AYUDANTE DE BARRIDO', semanal: 60, quincenal: 120 },
+        { id: '3', nombre: 'LIMPIADOR', semanal: 60, quincenal: 120 },
+        { id: '4', nombre: 'DESMALEZADOR', semanal: 65, quincenal: 130 },
+        { id: '5', nombre: 'CAPORAL', semanal: 75, quincenal: 150 },
+        { id: '6', nombre: 'CHOFER', semanal: 85, quincenal: 170 },
+        { id: '7', nombre: 'MECÁNICO', semanal: 85, quincenal: 170 },
+        { id: '8', nombre: 'SUPERVISOR', semanal: 90, quincenal: 180 },
+        { id: '9', nombre: 'ADMINISTRATIVO', semanal: 75, quincenal: 150 }
+      ]
+    };
+
+    window.renderizarTodo = function() {
+      if (typeof window.renderizarTablaNomina === 'function') {
+        window.renderizarTablaNomina();
+      }
+      if (typeof window.renderizarTablaAsistencias === 'function') {
+        window.renderizarTablaAsistencias();
+      }
+      if (typeof window.renderizarTablaCargos === 'function') {
+        window.renderizarTablaCargos();
+      }
+      if (typeof window.poblarSelectCargos === 'function') {
+        window.poblarSelectCargos();
+      }
+    };
+
+    async function initFirebase() {
+      if (!firebaseConfig) {
+        console.warn("Modo local: Operando en memoria local.");
+        document.getElementById('sync-text').textContent = "Modo Local (Memoria)";
+        document.getElementById('sync-dot').className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-400";
+        window.state.empleados = [];
+        window.renderizarTodo();
+        return;
+      }
+
+      try {
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        onAuthStateChanged(auth, (user) => {
+          if (user) {
+            isCloudActive = true;
+            document.getElementById('sync-text').textContent = "Conectado en la Nube";
+            document.getElementById('sync-dot').className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400";
+            escucharCambiosNube();
+          }
+        });
+      } catch (err) {
+        console.error("Error al inicializar Firebase:", err);
+        document.getElementById('sync-text').textContent = "Modo Local Fallback";
+        window.state.empleados = [];
+        window.renderizarTodo();
+      }
+    }
+
+    function escucharCambiosNube() {
+      if (!db || !auth.currentUser) return;
+
+      const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'empleados');
+      const cargosRef = collection(db, 'artifacts', appId, 'public', 'data', 'cargos');
+      const configRef = collection(db, 'artifacts', appId, 'public', 'data', 'configuracion');
+
+      onSnapshot(colRef, (snapshot) => {
+        const docs = [];
+        snapshot.forEach((doc) => {
+          docs.push({ id: doc.id, ...doc.data() });
+        });
+
+        window.state.empleados = docs;
+        window.renderizarTodo();
+      }, (error) => {
+        console.error("Error en Snapshot de Firestore (Empleados):", error);
+      });
+
+      onSnapshot(cargosRef, (snapshot) => {
+        const docs = [];
+        snapshot.forEach((doc) => {
+          docs.push({ id: doc.id, ...doc.data() });
+        });
+
+        if (docs.length === 0 && snapshot.metadata.hasPendingWrites === false) {
+          window.state.cargos.forEach(c => {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'cargos', c.id);
+            setDoc(docRef, c);
+          });
+        } else {
+          window.state.cargos = docs;
+          window.renderizarTodo();
+        }
+      }, (error) => {
+        console.error("Error en Snapshot de Firestore (Cargos):", error);
+      });
+
+      onSnapshot(configRef, (snapshot) => {
+        snapshot.forEach((doc) => {
+          if (doc.id === 'general') {
+            const data = doc.data();
+            if (data.tasaDolar) {
+              window.state.tasaDolar = data.tasaDolar;
+              const inputTasa = document.getElementById('tasa-dolar');
+              if (inputTasa && document.activeElement !== inputTasa) {
+                inputTasa.value = data.tasaDolar;
+              }
+            }
+            if (data.tipoPeriodo) {
+              window.state.tipoPeriodo = data.tipoPeriodo;
+              const selectPeriodo = document.getElementById('select-periodo');
+              if (selectPeriodo) selectPeriodo.value = data.tipoPeriodo;
+              const badgePeriodo = document.getElementById('badge-periodo');
+              if (badgePeriodo) badgePeriodo.textContent = data.tipoPeriodo === 'semanal' ? 'Semanal' : 'Quincenal';
+            }
+            window.renderizarTodo();
+          }
+        });
+      }, (error) => {
+        console.error("Error en Snapshot de Firestore (Configuración):", error);
+      });
+    }
+
+    window.syncGuardarEmpleado = async function(empData) {
+      if (isCloudActive && db && auth.currentUser) {
+        try {
+          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'empleados', String(empData.id));
+          await setDoc(docRef, empData, { merge: true });
+        } catch (e) {
+          console.error("Error al guardar en Firestore:", e);
+        }
+      } else {
+        const index = window.state.empleados.findIndex(e => String(e.id) === String(empData.id));
+        if (index >= 0) {
+          window.state.empleados[index] = empData;
+        } else {
+          window.state.empleados.push(empData);
+        }
+        window.renderizarTodo();
+      }
+    };
+
+    window.syncEliminarEmpleado = async function(id) {
+      const targetId = String(id);
+      if (isCloudActive && db && auth.currentUser) {
+        try {
+          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'empleados', targetId);
+          await deleteDoc(docRef);
+        } catch (e) {
+          console.error("Error al eliminar en Firestore:", e);
+        }
+      } else {
+        window.state.empleados = window.state.empleados.filter(e => String(e.id) !== targetId);
+        window.renderizarTodo();
+      }
+    };
+
+    window.syncVaciarNomina = async function() {
+      if (isCloudActive && db && auth.currentUser) {
+        try {
+          const listaIds = window.state.empleados.map(e => String(e.id));
+          for (const id of listaIds) {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'empleados', id);
+            await deleteDoc(docRef);
+          }
+        } catch (e) {
+          console.error("Error al vaciar nómina en Firestore:", e);
+        }
+      } else {
+        window.state.empleados = [];
+        window.renderizarTodo();
+      }
+    };
+
+    window.syncGuardarCargo = async function(cargoData) {
+      if (isCloudActive && db && auth.currentUser) {
+        try {
+          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'cargos', String(cargoData.id));
+          await setDoc(docRef, cargoData, { merge: true });
+        } catch (e) {
+          console.error("Error al guardar cargo en Firestore:", e);
+        }
+      } else {
+        window.state.cargos.push(cargoData);
+        window.renderizarTodo();
+      }
+    };
+
+    window.syncEliminarCargo = async function(id) {
+      const targetId = String(id);
+      if (isCloudActive && db && auth.currentUser) {
+        try {
+          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'cargos', targetId);
+          await deleteDoc(docRef);
+        } catch (e) {
+          console.error("Error al eliminar cargo en Firestore:", e);
+        }
+      } else {
+        window.state.cargos = window.state.cargos.filter(c => String(c.id) !== targetId);
+        window.renderizarTodo();
+      }
+    };
+
+    window.syncGuardarConfig = async function(configData) {
+      if (isCloudActive && db && auth.currentUser) {
+        try {
+          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'configuracion', 'general');
+          await setDoc(docRef, configData, { merge: true });
+        } catch (e) {
+          console.error("Error al guardar configuración en Firestore:", e);
+        }
+      }
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+      if (typeof window.setTheme === 'function') {
+        window.setTheme(localStorage.getItem('theme') || 'light');
+      }
+      setTimeout(() => {
+        window.obtenerTasaBCVEnTiempoReal(false);
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
